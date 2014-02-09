@@ -2,7 +2,7 @@ __author__ = 'vka'
 import string #letters
 import random
 from Getch import _Getch
-import unicodedata
+import terminalsize
 
 class Direction:
     HORIZONTAL = 0
@@ -112,48 +112,6 @@ class Board(object):
                     # self.board[x][y] = random.choice(letters)
                     self.board[x][y] = 'a'
 
-    def __str__(self, showWords = False):
-
-        if not showWords:
-            coords = None
-
-        else:
-            coords = []
-            for word in self.words:
-                start = word["startPos"]
-                end = word["endPos"]
-
-                for i in range(len(word["word"])):
-                    if end[0] - start[0] == 0:
-                        coords.append([start[0], start[1] + i])
-                    elif end[1] - start[1] == 0:
-                        coords.append([start[0] + i, start[1]])
-                    else:
-                        coords.append(([start[0] + i, start[1] + i]))
-
-        txt = ' '
-        for y in range(self.size):
-            txt += '\n'
-            for x in range(self.size):
-                if showWords == True:
-                    if [x, y] in coords:
-                        txt += Color.RED + self.board[x][y] + Color.END + ' '
-                    else:
-                        txt += self.board[x][y] + ' '
-                else:
-                    txt += self.board[x][y] + ' '
-
-            if y < len(self.words):
-                txt += ' ' * 10
-                if self.words[y]["found"] == True:
-                    txt += Color.GREEN
-                else:
-                    txt += Color.RED
-
-                txt += self.words[y]["word"] + Color.END
-        return txt
-
-
 class Game(object):
     #contains board, score etc
     #is able to generate game which contain desired words
@@ -161,12 +119,13 @@ class Game(object):
 
     def __init__(self, dim = 15):
         self.size = dim
+        self.board = None
+        self.loadedWords = ["word", "test", "another", "much", "words", "blue", "etc"] #todo
+        self.terminalSize = terminalsize.get_terminal_size()
+        self.getchar = _Getch()
+        self.cls = ClearScreen()
 
-        self.loadedWords = ["word", "test", "another", "much", "words", "blue", "etc"]
-        # self.loadedWords = ["a", "b", "c", "d"]
-        self.generate(self.loadedWords, dim)
-
-        self.play()
+        self.manageMenu()
 
     def generate(self, words = None, size = None):
         #generates board containing desired words
@@ -184,36 +143,96 @@ class Game(object):
 
         self.board.fillRandomly()
 
+    def manageMenu(self):
+
+        self.cls()
+
+        txt = '/' + '-' * (self.terminalSize[0] - 2) + '\\\n'
+        txt += '|' + ' ' * (self.terminalSize[0] - 2) + '|\n'
+        txt += '|' + "Simple Wordgame v1".center(self.terminalSize[0] - 2) + '|\n'
+        txt += '|' + "Welcome!".center(self.terminalSize[0] - 2) + '|\n'
+        txt += '|' + ' ' * (self.terminalSize[0] - 2) + '|\n'
+        txt += '|' + "Rules are simple:".center(self.terminalSize[0] - 2) + '|\n'
+        txt += '|' + "*) SWv1 generates map, you find all words, you win.".center(self.terminalSize[0] - 2) + '|\n'
+        txt += '|' + "Words are being loaded from default file \"words.txt\"".center(self.terminalSize[0] - 2) + '|\n'
+        txt += '|' + "Feel free to edit it and add your sets.".center(self.terminalSize[0] - 2) + '|\n'
+        txt += '|' + "And....have fun!".center(self.terminalSize[0] - 2) + '|\n'
+        txt += ('|' + (' ' * (self.terminalSize[0] - 2) + '|\n')) * (self.terminalSize[1] - 12)
+        txt += '|' + "Press any key to start, escape/q key to quit...".rjust(self.terminalSize[0] - 2) + '|\n'
+        txt += '\\' + '-' * (self.terminalSize[0] - 2)
+        print(txt, end='')
+        c = self.getchar()
+
+        while c not in [chr(27), 'q', 'Q']:
+            self.generate(self.loadedWords, self.size)
+            isWon = self.play()
+
+            txt = '/' + '-' * (self.terminalSize[0] - 2) + '\\\n'
+            txt += ('|' + ' ' * (self.terminalSize[0] - 2) + '|\n') * int((self.terminalSize[1] / 2 - 2))
+            txt += '|' + "GAME ENDED!".center(self.terminalSize[0] - 2) + "|\n"
+            txt += ('|' + ' ' * (self.terminalSize[0] - 2) + '|\n') * int((self.terminalSize[1] / 2 - 2))
+            txt += '|' + "Press any key to play again or q/ESC to quit...".rjust(self.terminalSize[0] - 2) + '|\n'
+            txt += '\\' + '-' * (self.terminalSize[0] - 2)
+            print(txt, end='')
+            c = self.getchar()
+        self.cls()
+
     def play(self):
-
-        #todo loading from file
-
-        getchar = _Getch()
-        cls = ClearScreen()
-
-        print("Welcome!")
-        print("Use arrows to move, enter to select first letter of the word and then enter to select last")
-        print("Press escape or q to abort.")
-        print("Press anykey to start game!")
-
-        c = getchar()
-        if c == chr(27) or c == "q":
-            print("Goodbye!")
-            return
 
         curPos = [0, 0]
         enterPressed = {}
         enterPressed["state"] = False
-        coordsToShow = [curPos]
-        cls()
+        coordsToShow = [curPos.copy()]
+        allFound = False
+        self.cls()
+        c = ''
+        while c not in [chr(27), 'q', 'Q'] and allFound == False:
 
-        while c is not chr(27) and c is not "q":
+            txt = '/' + '-' * (self.terminalSize[0] - 2) + '\\\n'
+            txt += '|' + ' ' * 10 + "BOARD".center(self.size * 2) + ' ' * 10  + "WORDS" + " " * (self.terminalSize[0] - 27 - self.size * 2) + '|'
 
-            print("")
-            self.showBoard(coordsToShow)
-            print("\nWASD to move, ESC od q to quit")
-            c = getchar()
-            cls()
+            foundCoords = []
+            for word in self.board.words:
+                if word["found"] == True:
+                    start = word["startPos"]
+                    end = word["endPos"]
+
+                    for i in range(len(word["word"])):
+                        if end[0] - start[0] == 0:
+                            foundCoords.append([start[0], start[1] + i])
+                        elif end[1] - start[1] == 0:
+                            foundCoords.append([start[0] + i, start[1]])
+                        else:
+                            foundCoords.append(([start[0] + i, start[1] + i]))
+
+            for y in range(self.size):
+                txt += '\n|' + ' ' * 10
+                for x in range(self.size):
+                    if ([x, y]) in coordsToShow:
+                        txt += Color.PINK + self.board.board[x][y] + Color.END + ' '
+                    elif [x, y] in foundCoords:
+                        txt += Color.GREEN + self.board.board[x][y] + Color.END + ' '
+                    else:
+                        txt += self.board.board[x][y] + ' '
+
+                length = 41
+                if y < len(self.board.words):
+                    if self.board.words[y]["found"] == True:
+                        txt += ' ' * 10 + Color.GREEN + self.board.words[y]["word"] + Color.END
+                    else:
+                        txt += ' ' * 10 + Color.RED + self.board.words[y]["word"] + Color.END
+                    length += 10 + len(self.board.words[y]["word"])
+
+                txt += '|'.rjust(self.terminalSize[0] - length)
+
+            txt += '|' + ' ' * (self.terminalSize[0] - 2) + '|\n'
+            txt += '|' + "Press WASD to move, ENTER to select and confirm, q od ESC to quit...".rjust(self.terminalSize[0] - 2) + '|\n'
+            txt += '\\' + '-' * (self.terminalSize[0] - 2)
+            print(txt, end='')
+
+            c = self.getchar()
+            self.cls()
+
             if c == 'a' and curPos[0] > 0:
                 curPos[0] -= 1
             elif c == 'd' and curPos[0] < self.size - 1:
@@ -276,25 +295,17 @@ class Game(object):
                             coordsToShow.append([start[0] - i, start[1] + i])
                 else:
                     coordsToShow = [curPos.copy(), start.copy()]
-
+            else:
+                coordsToShow = [curPos.copy()]
             #check if all words were found
-            all = True
+
+            allFound = True
             for word in self.board.words:
                 if word["found"] == False:
-                    all = False
+                    allFound = False
                     break
 
-            if all:
-                cls()
-                print("Gratz! All words were found!")
-                self.showBoard()
 
-                print("\nWanna play again?(Y/n)")
-                c = getchar()
-                if c != 'n' and c != 'N':
-                    cls()
-                    Game(self.size)
-                return
 
     def showBoard(self, coords = None):
         foundCoords = []
@@ -333,6 +344,6 @@ class Game(object):
 
         print(txt)
 if __name__ == "__main__":
-    game = Game(10)
+    game = Game(15)
     # ch = _Getch()
     # v = ch()
