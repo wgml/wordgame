@@ -3,7 +3,6 @@ import string #letters
 import random
 from Getch import _Getch
 import terminalsize
-
 class Direction:
     HORIZONTAL = 0
     VERTICAL = 1
@@ -76,6 +75,8 @@ class Board(object):
                     possibilities.append([[x, y], [x + len(word) - 1, y + len(word) - 1], Direction.DIAGONALRIGHT])
 
         #select random possibility and put word in place
+        if len(possibilities) == 0:
+            return
         choice = random.choice(possibilities)
         startPos = choice[0]
         endPos = choice[1]
@@ -109,8 +110,7 @@ class Board(object):
         for y in range(self.size):
             for x in range(self.size):
                 if self.board[x][y] == " ":
-                    # self.board[x][y] = random.choice(letters)
-                    self.board[x][y] = 'a'
+                    self.board[x][y] = random.choice(letters)
 
 class Game(object):
     #contains board, score etc
@@ -120,25 +120,41 @@ class Game(object):
     def __init__(self, dim = 15):
         self.size = dim
         self.board = None
-        self.loadedWords = ["word", "test", "another", "much", "words", "blue", "etc"] #todo
+        #self.loadedWords = ["word", "test", "another", "much", "words", "blue", "etc"] #todo
         self.terminalSize = terminalsize.get_terminal_size()
         self.getchar = _Getch()
         self.cls = ClearScreen()
 
+        self.loadWords()
+
         self.manageMenu()
+
+    def loadWords(self, file = None):
+        if file == None:
+            file = "words.txt"
+
+        with open(file, 'r') as f:
+            print("plik otworzony")
+            data = f.read()
+            self.loadedWords = data.split()
 
     def generate(self, words = None, size = None):
         #generates board containing desired words
         #if no params given, uses self.loadedWords and self.dim
 
         if words == None:
-            words == self.loadedWords
+            words = self.loadedWords
         if size == None:
             size = self.size
 
         self.board = Board(size)
 
-        for word in words:
+        #select random words from list
+        numWords = self.size
+        selectedWords = []
+        for i in range(numWords):
+            selectedWords.append(random.choice(words))
+        for word in selectedWords:
             self.board.addWord(word.upper())
 
         self.board.fillRandomly()
